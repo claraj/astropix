@@ -17,7 +17,8 @@ function homepage(req, res) {
   res.render('index', { title: 'ASTROPIX' });
 }
 
-//MUST have a body-parser to get POST data. (Unlike GET, which can be extracted from body.query)
+//MUST have a body-parser to get POST data.
+//(Unlike GET requests, which can be extracted from body.query)
 parser = bodyParser.json();
 
 router.post('/fetch_picture', parser, function fetch_picture(req, res) {
@@ -26,37 +27,28 @@ router.post('/fetch_picture', parser, function fetch_picture(req, res) {
   var random = "random_picture";
 
   if (req.body[today] ) {
-    apodRequest(function() {
-      res.render('image', apodJSON )
+    apodRequest(false, function() {
+      if (apodJSON.hasOwnProperty("copyright")) { apodJSON.copyright = "Image credit and copyright " + apodJSON.copyright;}
+      res.render('image', apodJSON);
     });
   }
 
   else if (req.body[random]) {
-    apodRequest("random", function gotResults(res){
-      res.render('image', {"img_title" : "A random image",
-        'img_copyright':"SDFSDGDRG",
-      'img_date':'random date'});
-
+    apodRequest(true, function() {
+      res.render('image', apodJSON);
     });
-
   }
 
   else {
-    res.status(404).send("Not found");
+    res.status(404).send("Unknown option");
   }
 
 });
 
-var imageTitle = "";
-var copyright = "";
-var description = "NOT THE FINAL VALUE";
-var imageFile = "";
+var apodJSON;
 
 
-function apodRequest(callback) {
-
-  //TODO add random var back
-  var random = false; //FIXME always gets today
+function apodRequest(random, callback) {
 
   var queryParam = {};
 
@@ -71,14 +63,13 @@ function apodRequest(callback) {
     queryParam = { 'api_key' : APIKEY };
 
   }
+
   request({uri :baseURL, qs: queryParam} , function(e, r, b, cb){
     apodJSONReply(e, r, b, callback);
   });
 
- // callback();
 }
 
-var apodJSON;
 
 function apodJSONReply(error, response, body, callback){
   console.log(response);
@@ -117,20 +108,6 @@ function randomDateString(){
   var stringRandomDate = randomDate.format('YYYY-MM-DD')
 
   return stringRandomDate;
-
-}
-
-//TODO need for saving thumbnails?
-function apodPictureResponse(error, response, body){
-
-  //TODO handle error
-
-  if (!error && response.statusCode == 200) {
-    console.log(body);
-    var apodJSON = JSON.parse(body);
-    //need copyright, title, description, and imageURL
-
-  }
 
 }
 
