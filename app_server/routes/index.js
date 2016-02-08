@@ -3,15 +3,12 @@ var router = express.Router();
 var bodyParser = require('body-parser');
 var request = require('request');
 var moment = require('moment');
-//TODO logger
-
 
 var APIKEY = '6MKqSwCKBOH3McxE7NVaL5CGGFvROvhXYHXbNLfC';  //TODO environment variable
 var baseURL = 'https://api.nasa.gov/planetary/apod' ;
 
 /* GET home page. */
 router.get('/', homepage);
-
 
 function homepage(req, res) {
   res.render('index', { title: 'ASTROPIX' });
@@ -21,6 +18,9 @@ function homepage(req, res) {
 //(Unlike GET requests, which can be extracted from body.query)
 parser = bodyParser.json();
 
+var apodJSON;
+var apodError = false;
+
 router.post('/fetch_picture', parser, function fetch_picture(req, res) {
 
   var today = "today_picture";
@@ -28,24 +28,21 @@ router.post('/fetch_picture', parser, function fetch_picture(req, res) {
 
   if (req.body[today] ) {
     apodRequest(false, function() {
-      if (apodJSON.hasOwnProperty("copyright")) { apodJSON.copyright = "Image credit and copyright " + apodJSON.copyright;}
-      res.render('image', apodJSON);
+      provideResponse(res);
     });
   }
 
   else if (req.body[random]) {
     apodRequest(true, function() {
-      res.render('image', apodJSON);
+      provideResponse(res);
     });
   }
 
   else {
-    res.status(404).send("Unknown option");
+    res.status(404).send("Unknown option");  //TODO better error message.
   }
 
 });
-
-var apodJSON;
 
 
 function apodRequest(random, callback) {
@@ -53,62 +50,92 @@ function apodRequest(random, callback) {
   var queryParam = {};
 
   if (random) {
-    console.log("random picture request");
-   // var randomDate = randomDateString();
-    queryParam = { "api_key" : APIKEY,
-      "date" :randomDateString() };
-
+    queryParam = { "api_key" : APIKEY, "date" :randomDateString() };
   }
   else {
     queryParam = { 'api_key' : APIKEY };
-
   }
 
-  request({uri :baseURL, qs: queryParam} , function(e, r, b, cb){
-    apodJSONReply(e, r, b, callback);
+  request({uri :baseURL, qs: queryParam} , function(error, request, body, call){
+    apodJSONReply(error, request, body, callback);
   });
 
 }
 
 
-function apodJSONReply(error, response, body, callback){
-  console.log(response);
+function provideResponse(res){
 
-  if (!error && response.statusCode == 200){
-
-    apodJSON = JSON.parse(body);
-    //description =  apodJSON['explanation'];
-
-    callback();
+  if (apodError) {
+    apodError = false;
+    res.render('apodError');
   }
 
   else {
-    //TODO better error handling
-    console.log("Error in JSON request " + error );
+
+    //APOD includes a copyright attribute, but only if the image is under copyright.
+    //Add a parameter for copyright or image credit, depending if there is a copyright holder
+    //NASA's images are in the public domain so no copyright, so provide an image credit.
+    if (apodJSON.hasOwnProperty("copyright")) {
+      apodJSON.credit = "Image credit and copyright: " + apodJSON.copyright;
+    } else {
+      apodJSON.credit = "Image credit: NASA";
+    }
+
+    console.log(JSON.stringify(apodJSON));  //for debugging
+    res.render('image', apodJSON);
+
   }
+}
+
+
+function apodJSONReply(error, response, body, callback){
+
+  if (!error && response.statusCode == 200){
+    apodJSON = JSON.parse(body);
+    apodError = false;
+  }
+
+  else {
+    //Log error info, set apodError flag to true
+    console.log("Error in JSON request: " + error);
+    console.log("Status code: " + response.statusCode);
+    console.log(response);
+    console.log(body);
+    apodError = true;
+  }
+
+  callback();
 
 }
 
-//Create a random date string between start of APOD service and today.
+//APOD started on June 16th, 1995. Select a random date between
+//then and today.  Convert to a string in YYYY-MM-DD format.
 function randomDateString(){
 
-  //APOD started on June 16th, 1995. Select a random date between then and today.
+  //Create data objects for today and start date
   var today = moment();
   var APODstart = moment('1995-06-16');
 
+  //Convert to Unix time - milliseconds since Jan 1, 1970
   var todayUnix = today.valueOf();
   var APODstartUnix = APODstart.valueOf();
+
+  //How many milliseconds between APOD start and now?
   var delta = todayUnix - APODstartUnix;
 
-  var offset = Math.floor((Math.random() * delta ));
+  //Generate a random number between 0 and (number of milliseconds between APOD start and now)
+  var offset = Math.floor((Math.random() * delta));
+  //And random number to APOD start
   var randomUnix = APODstartUnix + offset;
 
-  var randomDate = moment(randomUnix) //unix time generated
+  //And then turn this number of seconds back into a date
+  var randomDate = moment(randomUnix);
 
+  //And format this date as "YYYY-MM-DD", the format required in the
+  //APOD API calls.
   var stringRandomDate = randomDate.format('YYYY-MM-DD')
 
   return stringRandomDate;
-
 }
 
 
