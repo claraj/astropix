@@ -1,0 +1,16 @@
+extends layout
+
+block content
+
+  h1=title
+  img(src= '#{url}')
+
+  p.copyright Copyright #{copyright}
+  p.description=explanation
+  p.date=date
+
+  p
+    a(href ="#{url}") See this image at NASA's site
+
+
+  include buttons.jade

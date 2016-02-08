@@ -1,0 +1,11 @@
+extends layout
+
+block content
+
+  h1= title
+
+  //Sometimes it's easier to write HTML than use the template language. Preface with pipe | character.
+  | <P>View astronomy pictures from NASA's <a href="http://apod.nasa.gov/apod/astropix.html"> Astronomy Picture of the Day</a> service</p>
+
+  //Include another Jade file
+  include buttons.jade
