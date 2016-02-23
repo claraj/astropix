@@ -150,7 +150,8 @@ function randomDateString(){
 
   //Generate a random number between 0 and (number of milliseconds between APOD start and now)
   var offset = Math.floor((Math.random() * delta));
-  //And random number to APOD start
+
+  //Add random number to APOD start
   var randomUnix = APODstartUnix + offset;
 
   //And then turn this number of seconds back into a date
