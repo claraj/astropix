@@ -4,15 +4,7 @@ var bodyParser = require('body-parser');
 var request = require('request');
 var moment = require('moment');
 
-var APIKEY = '6MKqSwCKBOH3McxE7NVaL5CGGFvROvhXYHXbNLfC';  //TODO environment variable
 var baseURL = 'https://api.nasa.gov/planetary/apod' ;
-
-/* GET home page. */
-router.get('/', homepage);
-
-function homepage(req, res) {
-  res.render('index', { title: 'ASTROPIX' });
-}
 
 //MUST have a body-parser to get POST data.
 //(Unlike GET requests, which can be extracted from body.query)
@@ -21,14 +13,21 @@ parser = bodyParser.json();
 var apodJSON;
 var apodError = false;
 
+
+/* GET home page. */
+router.get('/', function(req, res, next){
+  res.render('index', { title: 'ASTROPIX' });
+});
+
+
 router.post('/fetch_picture', parser, function fetch_picture(req, res) {
 
   var today = "today_picture";
-  var random = "random_picture";
+  var random = "random_picture";    //Button attributes. Which button was clicked?
 
   if (req.body[today] ) {
     apodRequest(false, function() {
-      provideResponse(res);
+      provideResponse(res, today);
     });
   }
 
@@ -49,6 +48,8 @@ function apodRequest(random, callback) {
 
   var queryParam = {};
 
+  var APIKEY = process.env.APOD_API_KEY;
+
   if (random) {
     queryParam = { "api_key" : APIKEY, "date" :randomDateString() };
   }
@@ -56,14 +57,14 @@ function apodRequest(random, callback) {
     queryParam = { 'api_key' : APIKEY };
   }
 
-  request({uri :baseURL, qs: queryParam} , function(error, request, body, call){
+  request( {uri :baseURL, qs: queryParam} , function(error, request, body, call){
     apodJSONReply(error, request, body, callback);
   });
 
 }
 
 
-function provideResponse(res){
+function provideResponse(res, today){
 
   if (apodError) {
     apodError = false;
@@ -80,6 +81,30 @@ function provideResponse(res){
     } else {
       apodJSON.credit = "Image credit: NASA";
     }
+
+    //Create the NASA link to the image's page
+
+    //For previous images,
+    //The url provided is just for the image
+    //Would like to provide a link in the form
+    //   http://apod.nasa.gov/apod/ap160208.html
+    //Which is a page about the image.
+
+    //For today's image, the link is http://apod.nasa.gov/apod/
+
+    var baseURL = "http://apod.nasa.gov/apod/";
+
+    if (!today) {
+      var imgDate = moment(apodJSON.date);
+      var filenameDate = imgDate.format("YYMMDD");
+      var filename = "ap" + filenameDate + ".html";
+      var url = baseURL + filename;
+      apodJSON.apodurl = url;
+    }
+    else {
+      apodJSON.apodurl = baseURL;
+    }
+
 
     console.log(JSON.stringify(apodJSON));  //for debugging
     res.render('image', apodJSON);
@@ -109,11 +134,11 @@ function apodJSONReply(error, response, body, callback){
 }
 
 //APOD started on June 16th, 1995. Select a random date between
-//then and today.  Convert to a string in YYYY-MM-DD format.
+//then and yesterday.  Convert to a string in YYYY-MM-DD format.
 function randomDateString(){
 
-  //Create data objects for today and start date
-  var today = moment();
+  //Create data objects for yesterday, and APOD start date
+  var today = moment().subtract(1, 'days');
   var APODstart = moment('1995-06-16');
 
   //Convert to Unix time - milliseconds since Jan 1, 1970
@@ -133,7 +158,7 @@ function randomDateString(){
 
   //And format this date as "YYYY-MM-DD", the format required in the
   //APOD API calls.
-  var stringRandomDate = randomDate.format('YYYY-MM-DD')
+  var stringRandomDate = randomDate.format('YYYY-MM-DD');
 
   return stringRandomDate;
 }
