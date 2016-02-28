@@ -6,7 +6,7 @@ var moment = require('moment');
 
 var baseURL = 'https://api.nasa.gov/planetary/apod' ;
 
-//MUST have a body-parser to get POST data.
+//Must have a body-parser to get POST data.
 //(Unlike GET requests, which can be extracted from body.query)
 parser = bodyParser.json();
 
@@ -15,7 +15,7 @@ var apodError = false;
 
 
 /* GET home page. */
-router.get('/', function(req, res, next){
+router.get('/', function(req, res){
   res.render('index', { title: 'ASTROPIX' });
 });
 
@@ -26,112 +26,91 @@ router.post('/fetch_picture', parser, function fetch_picture(req, res) {
   var random = "random_picture";    //Button attributes. Which button was clicked?
 
   if (req.body[today] ) {
-    apodRequest(false, function() {
-      provideResponse(res, today);
-    });
+    apodRequest(res, true);  //true = today's picture
   }
 
   else if (req.body[random]) {
-    apodRequest(true, function() {
-      provideResponse(res);
-    });
+    apodRequest(res);
   }
 
   else {
     res.status(404).send("Unknown option");  //TODO better error message.
   }
-
 });
 
 
-function apodRequest(random, callback) {
+// Makes requests to NASA's APOD service using requestjs.
+// A callback checks for errors and then calls a method to
+// process the JSON and return a page to the client.
+function apodRequest(res, today) {
 
   var queryParam = {};
-
   var APIKEY = process.env.APOD_API_KEY;
 
-  if (random) {
-    queryParam = { "api_key" : APIKEY, "date" :randomDateString() };
-  }
-  else {
+  if (today) {
     queryParam = { 'api_key' : APIKEY };
   }
-
-  request( {uri :baseURL, qs: queryParam} , function(error, request, body, call){
-    apodJSONReply(error, request, body, callback);
-  });
-
-}
-
-
-function provideResponse(res, today){
-
-  if (apodError) {
-    apodError = false;
-    res.render('apodError');
+  else {
+    queryParam = { "api_key" : APIKEY, "date" :randomDateString() };
   }
 
-  else {
+  //Use request module to request picture from APOD service.
+  request( {uri :baseURL, qs: queryParam} , function(error, apod_response, body){
 
-    //APOD includes a copyright attribute, but only if the image is under copyright.
-    //Add a parameter for copyright or image credit, depending if there is a copyright holder
-    //NASA's images are in the public domain so no copyright, so provide an image credit.
-    if (apodJSON.hasOwnProperty("copyright")) {
-      apodJSON.credit = "Image credit and copyright: " + apodJSON.copyright;
-    } else {
-      apodJSON.credit = "Image credit: NASA";
+    if (!error && apod_response.statusCode == 200){
+      //Have a response from APOD. Process and use to provide response to our client.
+      apodJSON = JSON.parse(body);
+      processJSONsendResponse(res, today, apodJSON);
     }
 
-    //Create the NASA link to the image's page
-
-    //For previous images,
-    //The url provided is just for the image
-    //Would like to provide a link in the form
-    //   http://apod.nasa.gov/apod/ap160208.html
-    //Which is a page about the image.
-
-    //For today's image, the link is http://apod.nasa.gov/apod/
-
-    var baseURL = "http://apod.nasa.gov/apod/";
-
-    if (!today) {
-      var imgDate = moment(apodJSON.date);
-      var filenameDate = imgDate.format("YYMMDD");
-      var filename = "ap" + filenameDate + ".html";
-      var url = baseURL + filename;
-      apodJSON.apodurl = url;
-    }
     else {
-      apodJSON.apodurl = baseURL;
+      //Log error info to console and render generic error page.
+      console.log("Error in JSON request: " + error);
+      console.log(apod_response);
+      console.log(body);
+      res.render('apodError');
     }
 
-
-    console.log(JSON.stringify(apodJSON));  //for debugging
-    res.render('image', apodJSON);
-
-  }
+  });
 }
 
 
-function apodJSONReply(error, response, body, callback){
+function processJSONsendResponse(res, today, apodJSON){
 
-  if (!error && response.statusCode == 200){
-    apodJSON = JSON.parse(body);
-    apodError = false;
+  //APOD includes a copyright attribute, but only if the image is under copyright.
+  //Add a parameter for copyright or image credit, depending if there is a copyright holder
+  //NASA's images are in the public domain so no copyright, so provide an image credit.
+  if (apodJSON.hasOwnProperty("copyright")) {
+    apodJSON.credit = "Image credit and copyright: " + apodJSON.copyright;
+  } else {
+    apodJSON.credit = "Image credit: NASA";
   }
 
+  //Create the NASA link to the image's page
+
+  // The url provided is just for the image resource itself.
+  // Would also like to provide a link to the page about the image.
+  //  For today's image, the link is http://apod.nasa.gov/apod/
+  //  For another day's image (e.g Feb 1 2016), the link is http://apod.nasa.gov/apod/ap160201.html
+
+  var baseURL = "http://apod.nasa.gov/apod/";
+
+  if (today) {
+    apodJSON.apodurl = baseURL;
+  }
   else {
-    //Log error info, set apodError flag to true
-    console.log("Error in JSON request: " + error);
-    console.log("Status code: " + response.statusCode);
-    console.log(response);
-    console.log(body);
-    apodError = true;
+    var imgDate = moment(apodJSON.date);
+    var filenameDate = imgDate.format("YYMMDD");
+    var filename = "ap" + filenameDate + ".html";
+    var url = baseURL + filename;
+    apodJSON.apodurl = url;
   }
 
-  callback();
+  console.log(JSON.stringify(apodJSON));  //for debugging
 
+  res.render('image', apodJSON);
 }
+
 
 //APOD started on June 16th, 1995. Select a random date between
 //then and yesterday.  Convert to a string in YYYY-MM-DD format.

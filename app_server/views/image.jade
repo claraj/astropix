@@ -3,10 +3,18 @@ extends layout
 block content
 
   h1=title
-  img(src= '#{url}')
+
+
+  if media_type=='image'
+
+    img(src='#{url}')
+
+  else
+
+    ul.li.a(href='#{url}') This is a video or other media - click here to view APOD media
 
   p.credit #{credit}
-  p.description=explanation
+  p.description= explanation
   p.date This is NASA's Astronomy Picture of the day for #{date}.
 
   p
