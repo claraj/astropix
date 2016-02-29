@@ -1,18 +1,12 @@
 var express = require('express');
 var router = express.Router();
-var bodyParser = require('body-parser');
+//var bodyParser = require('body-parser');
+
+
 var request = require('request');
 var moment = require('moment');
 
 var baseURL = 'https://api.nasa.gov/planetary/apod' ;
-
-//Must have a body-parser to get POST data.
-//(Unlike GET requests, which can be extracted from body.query)
-parser = bodyParser.json();
-
-var apodJSON;
-var apodError = false;
-
 
 /* GET home page. */
 router.get('/', function(req, res){
@@ -20,21 +14,19 @@ router.get('/', function(req, res){
 });
 
 
-router.post('/fetch_picture', parser, function fetch_picture(req, res) {
 
-  var today = "today_picture";
-  var random = "random_picture";    //Button attributes. Which button was clicked?
+router.get('/fetch_picture', function fetch_picture(req, res) {
 
-  if (req.body[today] ) {
+  if (req.query["today"] ) {
     apodRequest(res, true);  //true = today's picture
   }
 
-  else if (req.body[random]) {
+  else if (req.query["random"]) {
     apodRequest(res);
   }
 
   else {
-    res.status(404).send("Unknown option");  //TODO better error message.
+    res.sendStatus(404)
   }
 });
 

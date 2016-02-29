@@ -11,7 +11,7 @@ block content
 
   else
 
-    ul.li.a(href='#{url}') This is a video or other media - click here to view APOD media
+    i.a(href='#{url}') Today's picture is a video or other media. Click here to view.
 
   p.credit #{credit}
   p.description= explanation
@@ -21,3 +21,6 @@ block content
     a(href ="#{apodurl}") See this image at NASA's site
 
   include buttons.jade
+
+
+
