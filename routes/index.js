@@ -14,7 +14,7 @@ router.get('/', function(req, res){
 });
 
 
-
+/* GET A picture from APOD service */
 router.get('/fetch_picture', function fetch_picture(req, res) {
 
   if (req.query["today"] ) {
